@@ -1,0 +1,184 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Zone Rush 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed top-down canvas, DOM HUD top-left, minimap drawn top-right, overlay card for menu and results. */
+:root {
+  --bg: #0b100d;
+  --panel: #141d17;
+  --line: #2a3a2f;
+  --fg: #e9f0ea;
+  --muted: #93a699;
+  --accent: #f2b134;
+  --danger: #e5484d;
+  --zone: #8b6cff;
+  --ok: #4cc38a;
+  --display: 'Chakra Petch', system-ui, sans-serif;
+  --body: 'Inter', system-ui, sans-serif;
+  --gl: max(16px, env(safe-area-inset-left, 0px));
+  --gr: max(16px, env(safe-area-inset-right, 0px));
+  --gt: env(safe-area-inset-top, 0px);
+  --gb: env(safe-area-inset-bottom, 0px);
+  color-scheme: dark;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  padding-left: var(--gl);
+  padding-right: var(--gr);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#stage {
+  position: relative;
+  height: 100%;
+  margin-left: calc(var(--gl) * -1);
+  margin-right: calc(var(--gr) * -1);
+  overflow: hidden;
+}
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#probe { position: absolute; visibility: hidden; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: var(--gl); padding-right: var(--gr); pointer-events: none; }
+
+.hud { position: absolute; top: calc(10px + var(--gt)); left: var(--gl); display: grid; gap: 6px; pointer-events: none; font-family: var(--display); }
+.row { display: flex; gap: 14px; font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.row b { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 17px; margin-left: 4px; }
+.bar { width: 150px; height: 8px; background: rgba(0,0,0,.45); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+#hp { height: 100%; width: 100%; background: var(--ok); transition: background .2s; }
+.ammo { font-size: 15px; font-weight: 600; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.ammo small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.zonetxt { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--zone); }
+.zonetxt.hot { color: var(--danger); }
+
+.ov { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8,12,10,.84); padding: calc(20px + var(--gt)) var(--gr) calc(20px + var(--gb)) var(--gl); }
+.card { width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 20px; display: grid; gap: 14px; }
+h1 { margin: 0; font-family: var(--display); font-size: clamp(34px, 9vw, 48px); letter-spacing: .06em; text-transform: uppercase; line-height: 1; text-wrap: balance; }
+h1 span { color: var(--zone); }
+.card p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); }
+.card p b { color: var(--fg); font-weight: 600; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat { flex: 1 1 90px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.stat i { display: block; font-style: normal; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stat strong { font-family: var(--display); font-size: 26px; font-variant-numeric: tabular-nums; }
+button {
+  font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  min-height: 50px; border: 0; border-radius: 8px; background: var(--accent); color: #1a1405; cursor: pointer;
+}
+button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+[hidden] { display: none !important; }
+body{padding-left:0;padding-right:0;display:flex;justify-content:center}
+#stage{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0;width:min(100vw,calc(100vh * 16 / 9));height:min(100vh,calc(100vw * 9 / 16))}
+.ov{overflow-y:auto}
+#fs{position:absolute;z-index:5;top:calc(10px + var(--gt));right:calc(var(--gr) + 114px);width:40px;height:40px;min-height:0;padding:0;display:grid;place-items:center;background:rgba(8,12,10,.6);border:1px solid var(--line);color:var(--fg);border-radius:8px}
+#fs svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#fs .off{display:none}
+#fs.on .on{display:none}
+#fs.on .off{display:block}
+.stack{display:grid;gap:10px}
+.mprow{display:flex;gap:8px}
+.mprow input{flex:1;min-width:0;min-height:50px;border-radius:8px;border:1px solid var(--line);background:#0e1511;color:var(--fg);font:600 20px var(--display);letter-spacing:.2em;text-align:center;padding:0 10px;user-select:text;-webkit-user-select:text}
+.mprow button{padding:0 18px}
+#mpId{font:700 40px var(--display);letter-spacing:.2em;text-align:center;color:var(--accent)}
+.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+#mrow{display:flex;gap:8px}#mrow button{flex:1;min-width:0;padding:0 8px}#mpBtn{background:transparent;color:var(--fg);border:2px solid var(--accent)}
+@media (max-height:460px){.card{padding:14px 16px;gap:8px;max-width:520px}h1{font-size:28px}.card p{font-size:13px;line-height:1.4}button{min-height:42px;font-size:16px}.stat strong{font-size:20px}}
+#g{pointer-events:none}
+#acct{justify-items:center}#acct p{text-align:center}#gBtn{min-height:44px;display:grid;place-items:center}#fbBtn,#outBtn{width:100%;max-width:280px}#fbBtn{background:#1877f2;color:#fff;border:0}
+</style>
+
+<div id="stage">
+  <canvas id="g"></canvas><canvas id="c"></canvas>
+  <button id="fs" type="button" aria-label="Toggle full screen" hidden><svg class="on" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><svg class="off" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
+  <div class="hud" id="hud" hidden>
+    <div class="row"><span>Alive<b id="hAlive">25</b></span><span>Kills<b id="hKills">0</b></span></div>
+    <div class="bar"><div id="hp"></div></div>
+    <div class="ammo"><span id="hAmmo">30</span><small id="hRes">/ 60</small><small id="hRel"></small></div>
+    <div class="zonetxt" id="hZone"></div>
+  </div>
+  <div class="ov" id="ov">
+    <div class="card">
+      <h1 id="ovTitle">Zone <span>Rush</span></h1>
+      <p id="ovText">You and 24 bots drop on one map. The purple zone keeps closing. Last one standing wins.</p>
+      <div class="stats" id="ovStats" hidden>
+        <div class="stat"><i>Place</i><strong id="sPlace">1</strong></div>
+        <div class="stat"><i>Kills</i><strong id="sKills">0</strong></div>
+        <div class="stat"><i>Time</i><strong id="sTime">0:00</strong></div>
+      </div>
+      <p id="ovHelp"><b>Touch:</b> left thumb moves, right thumb aims and fires.<br><b>Keyboard:</b> WASD to move, mouse to aim and fire, R to reload.<br>Green crosses heal. Yellow boxes are ammo.</p>
+      <div class="stack" id="acct" hidden><p id="acctMsg"></p><div id="gBtn"></div><button id="fbBtn" type="button">Continue with Facebook</button><button id="outBtn" class="ghost" type="button" hidden>Sign out</button></div>
+      <div id="mrow"><button id="go">Single play</button><button id="mpBtn" type="button" hidden>Multiplayer</button></div>
+    </div>
+  </div>
+  <div class="ov" id="mpOv" hidden>
+    <div class="card">
+      <h1>Multi<span>player</span></h1>
+      <div class="stack" id="mpHome">
+        <p>Create a room and share its ID. Friends open this page, tap Multiplayer and join with the ID. No bots, only players.</p>
+        <button id="mpCreate" type="button">Create room ID</button>
+        <div class="mprow"><input id="mpIn" maxlength="8" placeholder="Room ID" autocomplete="off" autocapitalize="off" spellcheck="false"><button id="mpJoin" type="button">Join</button></div>
+      </div>
+      <div class="stack" id="mpLobby" hidden>
+        <p>Share this room ID:</p>
+        <div id="mpId"></div>
+        <p id="mpCount"></p>
+        <button id="mpStart" type="button">Start match</button>
+      </div>
+      <p id="mpMsg"></p>
+      <button id="mpBack" class="ghost" type="button">Back</button>
+    </div>
+  </div>
+</div>
+<div id="probe"></div>
+<div id="err" style="position:fixed;left:0;right:0;top:0;z-index:99;background:#e5484d;color:#fff;font:12px monospace;padding:6px;display:none;white-space:pre-wrap"></div>
+<script>window.addEventListener('error',function(e){var d=document.getElementById('err');d.style.display='block';d.textContent+=e.message+' @'+e.lineno+'\n'});</script>
+
+<script>window.ZR_CONFIG=/*ZR_CONFIG*/{}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" onload=""></script>
+<script>
+(function () {
+  var W = 2600;
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('c'), ctx = cv.getContext('2d');
+  var DPR = 1, VW = 300, VH = 300, ins = { l: 16, r: 16, t: 0, b: 0 };
+
+  function resize() {
+    var r = cv.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    VW = r.width; VH = r.height;
+    cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+    if (renderer) { renderer.setPixelRatio(DPR); renderer.setSize(VW, VH, false); camera.aspect = VW / VH; camera.fov = clamp(2 * Math.atan(0.313 / camera.aspect) * 57.2958, 58, 80); camera.updateProjectionMatrix(); }
+    var cs = getComputedStyle($('probe'));
+    ins.t = parseFloat(cs.paddingTop) || 0; ins.b = parseFloat(cs.paddingBottom) || 0; ins.l = parseFloat(cs.paddingLeft) || 16; ins.r = parseFloat(cs.paddingRight) || 16;
+  }
+  window.addEventListener('resize', resize);
+
+  var RNG = Math.random, zR = Math.random, mpPeers = {};
+  var mp = { on: false, seed: 0, room: null, unsub: null, started: false, shots: 0, sa: 0, me: '' };
+  function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  var rnd = function (a, b) { return a + RNG() * (b - a); };
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var lerp = function (a, b, k) { return a + (b - a) * k; };
+
+  var phases = [
+    { hold: 18, shrink: 25, r: 950 },
+    { hold: 14, shrink: 25, r: 650 },
+    { hold: 12, shrink: 20, r: 400 },
+    { hold: 10, shrink: 20, r: 200 },
+    { hold: 8, shrink: 20, r: 60 }
+  ];
+
+  var obs = [], loot = [], ents = [], bullets = [], player, zone, state = 'menu', clock = 0, aliveN = 0;
+  var cam = { x: W / 2, y: W / 2 };
+
+  function inObs(x, y, pad) {
+    for (var i = 0; i < obs.length; i++) {
+      var o = obs[i];
+      if (x > o.x - pad && x < o.x + o.w + pad && y > o.y - pad && y < o.y + o.h + pad) return true;
